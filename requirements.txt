@@ -1,0 +1,6 @@
+numpy >= 1.18
+h5py>=2.10.0
+tensorflow == 2.8
+tf_fastmri_data
+torch
+fastmri
