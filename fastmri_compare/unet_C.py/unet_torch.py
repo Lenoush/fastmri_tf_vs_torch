@@ -1,11 +1,13 @@
+import sys
+sys.path.append('/home/lo276838/Modèles/fastmri_tf_vs_torch/fastmri_compare')
 
 import torch
 import numpy as np
 from matplotlib import pyplot as plt
 from torch.autograd import Variable
 
-from fastmri_compare.vcr_C.vcr_torch import virtual_coil_reconstruction
-from fastmri_compare.utils.other import load_and_transform
+from vcr_C.vcr_torch import virtual_coil_reconstruction
+from utils.other import load_and_transform
 
 from fastmri.data.subsample import create_mask_for_mask_type
 from fastmri.models.unet import Unet

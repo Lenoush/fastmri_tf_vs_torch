@@ -3,6 +3,7 @@ sys.path.append('/home/lo276838/Modèles/fastmri_tf_vs_torch/fastmri_compare')
 
 import numpy as np
 import tensorflow as tf
+import multiprocessing
 
 
 def virtual_coil_reconstruction(imgs):
@@ -71,10 +72,10 @@ def ortho_ifft2d(kspace):
     n_slices = tf.shape(kspace)[0]
     k_shape_x = tf.shape(kspace)[-2]
     k_shape_y = tf.shape(kspace)[-1]
-    shifted_kspace = ifftshift(kspace, axes=axes)
+    shifted_kspace = tf.signal.ifftshift(kspace, axes=axes)
     batched_shifted_kspace = tf.reshape(shifted_kspace, (-1, k_shape_x, k_shape_y))
     batched_shifted_image = tf.map_fn(
-        ifft2d,
+        tf.signal.ifft2d,
         batched_shifted_kspace,
         parallel_iterations=multiprocessing.cpu_count(),
     )
@@ -86,7 +87,7 @@ def ortho_ifft2d(kspace):
     else:
         image_shape = [k_shape_x, k_shape_y]
     shifted_image = tf.reshape(batched_shifted_image, image_shape)
-    image = fftshift(shifted_image, axes=axes)
+    image = tf.signal.fftshift(shifted_image, axes=axes)
     return scaling_norm * image
 
 
@@ -100,10 +101,10 @@ def ortho_fft2d(image):
     n_slices = tf.shape(image)[0]
     i_shape_x = tf.shape(image)[-2]
     i_shape_y = tf.shape(image)[-1]
-    shifted_image = fftshift(image, axes=axes)
+    shifted_image = tf.signal.fftshift(image, axes=axes)
     batched_shifted_image = tf.reshape(shifted_image, (-1, i_shape_x, i_shape_y))
     batched_shifted_kspace = tf.map_fn(
-        fft2d,
+        tf.signal.fft2d,
         batched_shifted_image,
         parallel_iterations=multiprocessing.cpu_count(),
     )
@@ -115,5 +116,5 @@ def ortho_fft2d(image):
     else:
         kspace_shape = [i_shape_x, i_shape_y]
     shifted_kspace = tf.reshape(batched_shifted_kspace, kspace_shape)
-    kspace = ifftshift(shifted_kspace, axes=axes)
+    kspace = tf.signal.ifftshift(shifted_kspace, axes=axes)
     return kspace / scaling_norm

@@ -4,7 +4,7 @@ sys.path.append('/home/lo276838/Modèles/fastmri_tf_vs_torch/fastmri_compare')
 from vcr_tf import virtual_coil_reconstruction as VCR_tf
 from vcr_torch import virtual_coil_reconstruction as VCR_torch
 
-from ..utils.other import load_and_transform
+from utils.other import load_and_transform
 
 import numpy as np
 import torch
