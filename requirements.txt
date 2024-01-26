@@ -1,6 +1,7 @@
 numpy >= 1.18
-h5py>=2.10.0
-tensorflow == 2.8
-tf_fastmri_data
+h5py >=2.10.0
 torch
 fastmri
+matplotlib
+tensorflow == 2.8.0
+keras == 2.8.0
