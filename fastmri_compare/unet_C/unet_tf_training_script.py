@@ -61,9 +61,7 @@ chkpt_path = f'checkpoints/{run_id}' + '-{epoch:02d}.hdf5'
 
 
 chkpt_cback = ModelCheckpoint(chkpt_path, save_freq=100, save_best_only= True)
-# log_dir = op.join('logs', run_id)
 tboard_cback = TensorBoard(
-    # log_dir=log_dir,
     profile_batch=0,
     histogram_freq=0,
     write_graph=True,
