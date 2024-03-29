@@ -10,6 +10,7 @@ tensorflow-nufft==0.7.3
 tensorflow-addons==0.16.1
 click
 tfkbnufft>=0.1.2
+protobuf==3.17.3
 SciencePlots
 huggingface-hub
 pytest

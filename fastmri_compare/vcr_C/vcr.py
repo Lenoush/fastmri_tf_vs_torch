@@ -5,7 +5,7 @@ import time
 from fastmri_compare.utils.other import load_and_transform
 from config import Data_brain_multicoil
 
-file_path = Data_brain_multicoil+"file_brain_AXT1POST_201_6002778.h5"
+file_path = Data_brain_multicoil+"file_brain_AXT1POST_201_6002780.h5"
 kspace_multicoil = load_and_transform(file_path)
 imgs = torch.fft.fftshift(torch.fft.ifft2(kspace_multicoil))
 
