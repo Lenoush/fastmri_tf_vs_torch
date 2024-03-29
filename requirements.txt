@@ -1,0 +1,15 @@
+numpy>=1.18
+h5py
+torch
+fastmri
+matplotlib
+ismrmrd
+nibabel
+tensorflow==2.8.4
+tensorflow-nufft==0.7.3
+tensorflow-addons==0.16.1
+click
+tfkbnufft>=0.1.2
+SciencePlots
+huggingface-hub
+pytest
