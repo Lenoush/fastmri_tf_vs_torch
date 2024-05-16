@@ -31,4 +31,4 @@ def test_combine_images(download_data):
     assert tf_output.shape == pt_output.shape
 
     # Assurez-vous que les valeurs sont proches (tolérance peut être ajustée)
-    np.testing.assert_almost_equal(tf_output.numpy(), pt_output.numpy(), decimal=1)
+    np.testing.assert_almost_equal(tf_output.numpy(), pt_output.numpy(), decimal=8)

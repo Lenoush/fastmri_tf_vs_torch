@@ -1,31 +1,18 @@
+import time
+
+start = time.time()
+
 import torch
 import glob
+import matplotlib.pyplot as plt
 
 from fastmri.data.subsample import create_mask_for_mask_type
+from fastmri_compare.utils.data_transforme import path_to_image_and_kspace
 from fastmri.models.unet import Unet
 
-from fastmri_compare.vcr_C.vcr_torch import virtual_coil_reconstruction
-from fastmri_compare.utils.other import load_and_transform
-from config import Save_model_path, Data_brain_multicoil
+from config import Save_model_path, Data_brain_singlecoil_pytorch, Data_brain_singlecoil_predict_pytorch
 
-def filename_to_image_and_kspace(train_path):
-    r""" Load and transform Multi-coil into Single-coil.
-
-    Arguments :
-        train_path (str) : path of the data with the extension .h5
-    Returns :
-        image : image of all batchs 
-        kspace : kspace of all batchs
-    """
-
-    kspace_multicoil = load_and_transform(train_path)
-    images_multicoil = torch.fft.fftshift(torch.fft.ifft2(kspace_multicoil))
-    image = virtual_coil_reconstruction(images_multicoil)
-    image = image.unsqueeze(1)
-    kspace = torch.fft.fft2(image)
-
-    return image, kspace
-
+endimport = time.time()
 
 def get_zerofilled( 
         kspace,
@@ -38,7 +25,7 @@ def get_zerofilled(
     Arguments :
         kspace (array) : kspace of my data. Shape : (Batch, Coils = 1, H, W)
             TEST FOR DIM  = 3 !!
-        mask_type (str) : choose the mask func for the target mask type
+        mask_type (str) : choose the mask func for the zero-filled mask type
             Default : "random"
         center_fractions (array) : What fraction of the center of k-space to include.
             Default : [0.8]
@@ -69,12 +56,12 @@ def get_zerofilled(
     return zero_filled
 
 
-def train_mulicoil_data(
+def train_data(
         filespath, 
         num_epochs = 200,
-        num_pool_layers=4, 
+        num_pool_layers=3, 
         lr=1e-3, 
-        name_for_save= Save_model_path+'fastmri_unet_model.pth'
+        name_for_save= Save_model_path+'fastmriTorch_unet_model.pth'
         ):
     r""" Train an Unet network on the fastMRI dataset.
 
@@ -90,45 +77,100 @@ def train_mulicoil_data(
     Returns :
         outputs10 (array) :  output list every 10 epochs
     """
-
+    # Data
     filenames = glob.glob(filespath + '*.h5')
     if not filenames:
         raise ValueError('No h5 files at path {}'.format(filespath))
-
-    model = Unet(in_chans=1, out_chans=1, num_pool_layers=num_pool_layers)
+    
+    # Model
+    model = Unet(in_chans=1, out_chans=1, chans=16, num_pool_layers=num_pool_layers)
     model.train()
 
-    criterion = torch.nn.L1Loss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_list = []
-    outputs10 = []
+    # Print model's state_dict
+    print("Model's state_dict:")
+    for param_tensor in model.state_dict():
+        print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
+    # Loss and optimizer
+    criterion = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # Training loop
+    outputs_and_loss_by_epoch = []
+    traindataset = []
+
+    # Create the dataset
+    for filename in filenames:
+        image, kspace = path_to_image_and_kspace(filename)
+        # plt.imshow(abs(image[8,0,:,:]), cmap="gray")
+        # plt.title("Image (Target)")
+        # plt.show()
+
+        target = image.abs()
+        zero_filled = get_zerofilled(kspace)
+        # plt.imshow(abs(zero_filled[8,0,:,:]), cmap="gray")
+        # plt.title("Zero-filled reconstruction")
+        # plt.show()
+
+        traindataset.append([zero_filled, target])
+
+    # Train the model
     for epoch in range(num_epochs):
         print(f'Epoch [{epoch+1}/{num_epochs}]')
+
         i = 0
+        result_by_epoch = []
 
-        for filename in filenames:
-            print(f'FileNumber [{i+1}/{len(filenames)}]')
+        for zero_filled, target in traindataset:
+            print(f'Image [{i+1}/{len(traindataset)}]')
 
-            image, kspace = filename_to_image_and_kspace(filename)
-            target = image.abs()
-            zero_filled = get_zerofilled(kspace)
-            zero_filled = torch.abs(zero_filled)
-
+            # Forward pass
             optimizer.zero_grad()
-            outputs = model(zero_filled)
+            outputs = model(abs(zero_filled))
+            plt.imshow(outputs[8,0,:,:].detach().numpy(), cmap="gray")
+            plt.title("Prediction (UNET)")
+            plt.show()
+
+            # Save the output and loss
             loss = criterion(outputs, target)
-            loss_list.append(loss.item())
-            if epoch % 10 == 0:
-                outputs10.append([outputs, loss.item()])
+            result_by_epoch.append([outputs, loss.item()])
+            
+            # Backward and optimize
             loss.backward()
             optimizer.step()
             i+=1
 
-    torch.save(model.state_dict(), name_for_save)
-    return outputs10
+        outputs_and_loss_by_epoch.append(result_by_epoch)
 
+    # Save the model 
+    # torch.save(model.state_dict(), name_for_save)
+
+
+    # # Print optimizer's state_dict
+    # print("Optimizer's state_dict:")
+    # for var_name in optimizer.state_dict():
+    #     print(var_name, "\t", optimizer.state_dict()[var_name])
+
+    return outputs_and_loss_by_epoch
 
 if __name__ == '__main__':
-    filepath = Data_brain_multicoil
-    x = train_mulicoil_data(filepath, num_epochs=1)
+    filepath = Data_brain_singlecoil_predict_pytorch 
+    trainning_result = train_data(filepath, num_epochs=3)
+    endfinal = time.time()
+
+    # Plot the loss for each epoch 
+    # colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    # for epoch in range(len(trainning_result)):
+    #     index_image = [image for image in range(len(trainning_result[epoch]))] 
+    #     lost_by_image = [loss[1] for loss in trainning_result[epoch]]
+    #     plt.plot(index_image, lost_by_image, color=colors[epoch % len(colors)], label=f'Epoch {epoch+1}')
+
+    # plt.title('Loss for each image for each epoch')
+    # plt.xlabel('Image')
+    # plt.ylabel('Loss')
+    # plt.legend()
+    # plt.show()
+
+    print(f"Time of import : {endimport - start}")
+    print(f"Time of final : {endfinal - endimport}")
+    print(f"Time of all : {endfinal - start}")

@@ -7,7 +7,7 @@ from ...data.utils.crop import crop_center
 def reco_z_filled(kspace, fourier_op):
     x_final = fourier_op.adj_op(kspace)
     x_final = np.abs(x_final)
-    x_final = crop_center(x_final, 320, 640)
+    x_final = crop_center(x_final, kspace.shape[1], kspace.shape[0])
     return x_final
 
 def zero_filled_cropped_recon(kspace):

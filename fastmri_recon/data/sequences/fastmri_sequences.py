@@ -269,7 +269,7 @@ class ZeroFilled2DSequence(fastMRI2DSequence):
             zero_filled_rec = zero_filled_cropped_recon(kspace * fourier_mask)
             if self.norm:
                 zero_filled_rec, mean, std = normalize_instance(zero_filled_rec, eps=1e-11)
-                image = normalize(image, mean, std, eps=1e-11)
+                # image = normalize(image, mean, std, eps=1e-11) ## Delete LENA beacuse TArget = all black
                 if self.mode == 'validation':
                     means.append(mean)
                     stddevs.append(std)

@@ -45,7 +45,8 @@ class FFT2:
             inverse 2D discrete Fourier transform of the input coefficients.
         """
         masked_fft_coeffs = self.mask * x
-        return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(masked_fft_coeffs, axes=(-2, -1)), norm='ortho'), axes=(-2, -1))
+        return np.fft.ifft2(masked_fft_coeffs, norm='ortho') ## Change LENA beacause of the target , it was shifted before
+        # return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(masked_fft_coeffs, axes=(-2, -1)), norm='ortho'), axes=(-2, -1))
 
 
 def fft(image):

@@ -1,92 +1,90 @@
 import time
+
+from fastmri_compare.unet_C.ImageSaverCallback import ImageSaverCallback
+start = time.time()
+
 from matplotlib import pyplot as plt
+import os.path as op
 import os
-import h5py
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 from tensorflow_addons.callbacks import TQDMProgressBar
 
 from fastmri_recon.data.sequences.fastmri_sequences import ZeroFilled2DSequence
 from fastmri_recon.models.functional_models.unet import unet
+from config import Checkpoints_Dir, Data_brain_singlecoil_predict_tf, Data_brain_singlecoil_tf
 
-from fastmri_compare.vcr_C.vcr_tf import virtual_coil_reconstruction 
-from config import Data_brain_multicoil, Data_brain_MtoS
-
-def process_h5_files(input_path, output_path):
-
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
-    for file_name in os.listdir(input_path):
-        if file_name.endswith(".h5"):
-            with h5py.File(os.path.join(input_path, file_name), 'r') as hf:
-                kspace = hf['kspace'][()]
-
-            kspace_tensor = tf.convert_to_tensor(kspace, dtype=tf.complex64)
-            image = tf.signal.ifft2d(kspace_tensor)
-            image_vrc = virtual_coil_reconstruction(image)
-            kspace_new_image = tf.signal.fft2d(image_vrc)
-            output_file_path = os.path.join(output_path, file_name)
-            
-            with h5py.File(output_file_path, 'w') as hf_out:
-                hf_out.create_dataset("kspace", data=kspace_new_image.numpy())
-                hf_out.create_dataset("reconstruction_esc", data=kspace_new_image.numpy())
-
-    return output_path
+endimport = time.time()
 
 # paths
-train_path = Data_brain_multicoil
-val_path = Data_brain_multicoil
-
-test = Data_brain_MtoS
-New_train_path = process_h5_files(train_path,test)
-
-n_volumes_train = 2
+train_path = Data_brain_singlecoil_predict_tf
+n_volumes_train = len(os.listdir(train_path)) // 16
 
 # generators
 AF = 4
-
-train_gen = ZeroFilled2DSequence(New_train_path, af=AF, norm=True)
-val_gen = ZeroFilled2DSequence(New_train_path, af=AF, norm=True)
+train_gen = ZeroFilled2DSequence(train_path, af=AF, norm=True)
+val_gen = ZeroFilled2DSequence(train_path, af=AF, norm=True)
 
 run_params = {
     'n_layers': 4,
     'pool': 'max',
     "layers_n_channels": [16, 32, 64, 128],
-    'layers_n_non_lins': 2,
 }
+
 n_epochs = 3
 run_id = f'unet_af{AF}_{int(time.time())}'
-chkpt_path = f'checkpoints/{run_id}' + '-{epoch:02d}.hdf5'
+chkpt_path = f'{Checkpoints_Dir}unetTF_model.hdf5'
 
-
-chkpt_cback = ModelCheckpoint(chkpt_path, save_freq=100, save_best_only= True)
+chkpt_cback = ModelCheckpoint(chkpt_path, save_freq=100, save_weights_only=True, verbose=1)
+log_dir = op.join('logs', run_id)
 tboard_cback = TensorBoard(
+    log_dir=log_dir,
     profile_batch=0,
     histogram_freq=0,
     write_graph=True,
     write_images=False,
 )
 tqdm_cb = TQDMProgressBar()
+save_path = '/volatile/Lena/Codes/Modèles/fastmri_tf_vs_torch-1/fastmri_compare/unet_C/training_images'
+os.makedirs(save_path, exist_ok=True)
+image_saver_cb = ImageSaverCallback(val_gen, save_path)
 
 model = unet(input_size=(640, 320, 1), lr=1e-3, **run_params)
+model.save_weights(chkpt_path.format(epoch=n_epochs))
+# model.load_weights(chkpt_path)
+# for layer in model.layers:
+#     weights = layer.get_weights() 
+#     print(f"Layer: {layer.name}")
+#     for weight in weights:
+#         print(weight.shape)
 
-model.fit(
+
+history = model.fit(
     train_gen,
-    steps_per_epoch=1,
-    # steps_per_epoch=n_volumes_train,
+    steps_per_epoch=n_volumes_train,
     epochs=n_epochs,
     validation_data=val_gen,
     validation_steps=1,
-    verbose=1,
-    callbacks=[tqdm_cb, tboard_cback, chkpt_cback],
+    verbose=0,
+    callbacks=[tqdm_cb, tboard_cback, chkpt_cback, image_saver_cb],
     max_queue_size=100,
     use_multiprocessing=True,
     workers=35,
 )
+endfinal = time.time()  
 
+print(f"Time of import : {endimport - start}")
+print(f"Time of final training  : {endfinal - endimport}")
 
-result = model.predict(train_gen, steps=n_volumes_train)
-print(result.shape)
-plt.imshow(result[8,:,:,0])
-plt.show()
+history.history
+
+def display_images(epoch, save_path):
+    img_path = os.path.join(save_path, f'epoch_{epoch}.png')
+    img = plt.imread(img_path)
+    plt.imshow(img)
+    plt.axis('off')
+    plt.show()
+
+# Display images for a specific epoch
+epoch_to_display = 3
+display_images(epoch_to_display, save_path)

@@ -53,11 +53,10 @@ def virtual_coil_reconstruction(imgs):
         ),
         dim=1
     )
-
+    img_comb = torch.fft.fftshift(img_comb)
     return img_comb
 
 
-##Zach
 def ortho_fft2d(image):
     image = image.to(dtype=torch.complex64)
     axes = [len(image.shape) - 2, len(image.shape) - 1]
